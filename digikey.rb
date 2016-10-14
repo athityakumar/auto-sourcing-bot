@@ -38,10 +38,9 @@ def get_required_price prices , quantities , quantity
 end
 
 def scrape_digikey part_numbers
+
   agent = get_agent()
   details , key = [["PART #","QUANTITY","MOQ","STOCK","PRICE","LINK"]] , 1
-  # part_numbers = [["SN74HC74N",50],["LM324N",1400]]
-
   part_numbers.each do |part_number|
     flag = 0
     search_page = agent.get("http://www.digikey.com/product-search/en?keywords=#{part_number[0]}")
@@ -58,7 +57,7 @@ def scrape_digikey part_numbers
         price = get_required_price(prices,quantities,part_number[1].to_i)
         # Convert USD to INR with freights & profit costs
         price = price * 120 
-        puts "FOUND MATCH : #{part_number} , #{product_page_link} , MOQ #{moq} , STOCK #{quantity} , PRICE #{price}"
+        puts "\nFOUND MATCH : #{part_number} , #{product_page_link} , MOQ #{moq} , STOCK #{quantity} , PRICE #{price}"
         if flag == 0
           details[key] = [part_number[0],part_number[1],moq,quantity,price,product_page_link]
         else 
@@ -74,19 +73,57 @@ end
 
 def read_csv filename
 
+  dir = Dir.pwd
+  Dir.chdir("../auto-sourcing-csv-files/input")
   part_numbers = CSV.read(filename)
-  puts part_numbers
+  puts "\nCompleted reading the part numbers from csv file - #{filename}."
+  Dir.chdir(dir)
   return part_numbers
 
 end
 
 def output_csv details , filename
 
+  dir = Dir.pwd
+  unless Dir.exist? "../auto-sourcing-csv-files/output"
+    Dir.mkdir("../auto-sourcing-csv-files/output")
+  end
+  Dir.chdir("../auto-sourcing-csv-files/output")
   csv_str = details.inject([]) { |csv, row|  csv << CSV.generate_line(row) }.join("")
   File.open(filename, "w") {|f| f.write(details.inject([]) { |csv, row|  csv << CSV.generate_line(row) }.join(""))}
+  puts "\nCompleted sourcing for the part numbers. Output csv file - #{filename}. Output directory - auto-sourcing-csv-files/output."
+  puts "\n"
+  Dir.chdir(dir)
 
 end
 
-part_numbers = read_csv("sample_input.csv")
+def get_user_input
+
+  dir = Dir.pwd
+  Dir.chdir("../auto-sourcing-csv-files/input")
+  files = Dir.entries(".")
+  files.delete(".")
+  files.delete("..")
+  puts "\nLIST OF INPUT EXCEL FILES - "
+  for i in 0..files.count-1
+    puts "(#{i+1}) #{files[i]}"
+  end
+  puts "\nEnter your selected choice (1 - #{files.count}) : "
+  choice = gets.strip.to_i
+  if !(choice >= 1 && choice <= files.count)
+    puts "\nInvalid selection of choice. Choose choice between 1 & #{files.count}."   
+    Dir.chdir(dir)
+    file = get_user_input()
+    return file
+  else
+    Dir.chdir(dir)
+    return files[choice-1] 
+  end
+end  
+
+input_file = get_user_input()
+puts "\nChosen input file : #{input_file}"
+output_file = "digikey_output_"+input_file
+part_numbers = read_csv(input_file)
 details = scrape_digikey(part_numbers)
-output_csv(details,"sample_output_digikey.csv")
+output_csv(details,output_file)
