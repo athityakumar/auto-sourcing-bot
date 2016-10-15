@@ -37,7 +37,7 @@ def get_required_price prices , quantities , quantity
 
 end
 
-def scrape_digikey part_numbers
+def scrape_digikey part_numbers , mf
 
   agent = get_agent()
   details , key = [["PART #","QUANTITY","MOQ","STOCK","PRICE","LINK"]] , 1
@@ -56,7 +56,7 @@ def scrape_digikey part_numbers
         prices , quantities = form_price_tables(product_page)
         price = get_required_price(prices,quantities,part_number[1].to_i)
         # Convert USD to INR with freights & profit costs
-        price = price * 120 
+        price = price * mf 
         puts "\nFOUND MATCH : #{part_number} , #{product_page_link} , MOQ #{moq} , STOCK #{quantity} , PRICE #{price}"
         if flag == 0
           details[key] = [part_number[0],part_number[1],moq,quantity,price,product_page_link]
@@ -109,7 +109,7 @@ def get_user_input
     puts "(#{i+1}) #{files[i]}"
   end
   puts "\nEnter your selected choice (1 - #{files.count}) : "
-  choice = gets.strip.to_i
+  choice = gets.chomp.to_i
   if !(choice >= 1 && choice <= files.count)
     puts "\nInvalid selection of choice. Choose choice between 1 & #{files.count}."   
     Dir.chdir(dir)
@@ -121,9 +121,19 @@ def get_user_input
   end
 end  
 
+def get_factor
+
+  mf = 0.0
+	puts "\nEnter your required multiplication factor for prices (USD to INR) : "
+	mf = gets.chomp.to_f  
+	return mf
+
+end
+
 input_file = get_user_input()
 puts "\nChosen input file : #{input_file}"
 output_file = "digikey_output_"+input_file
 part_numbers = read_csv(input_file)
-details = scrape_digikey(part_numbers)
+mf = get_factor()
+details = scrape_digikey(part_numbers,mf)
 output_csv(details,output_file)
